@@ -1,4 +1,3 @@
-from _typeshed import Self
 import  numpy as np
 import math
 from cal import *
@@ -301,7 +300,7 @@ class FlowWord(object):
         nth = 1
         time_seq = []
         for timestamp, packet in self.capture:
-            self.parse_packet(packet, packet, nth)
+            self.parse_packet(packet, timestamp, nth)
             if nth == 1:
                 time_begin = timestamp
             time = timestamp - time_begin
@@ -319,7 +318,10 @@ class FlowWord(object):
                     tem = value.data
                     if tem[0] in {20, 21, 22}:
                         self.parse_tls_records(tem, value.nth_seq[-1], value.nth_seq)
-
+        self.pack_num = nth
+        self.time = time
+        while len(self.sequence) < 20:
+            self.sequence.append(0)
 
     def parse_packet(self, packet, timestamp, nth):
         """

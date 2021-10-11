@@ -5,10 +5,10 @@ import dpkt
 import numpy as np
 def pre_flow(data_path, save_path, type):
     dataset = []
-    for filename in tqdm(os.listdir(data_path)):
+    for filename in os.listdir(data_path):
         try:
-            with open(filename, 'rb') as f:
-                capture = dpkt.pcap.Reader(data_path)
+            with open(data_path + filename, 'rb') as f:
+                capture = dpkt.pcap.Reader(f)
                 flow_sample = FlowWord(capture, type)
                 flow_sample.name = filename.replace('.pcap', '')
                 flow_sample.analyse()
@@ -25,12 +25,12 @@ def pre_flow(data_path, save_path, type):
 if __name__ == "__main__":
     print("begin")
     base_path = "data_feature"
-    save_path = "f_data_word"
+    save_path = "f_data_word_test"
     path = base_path + "/" + save_path
     if not os.path.exists(path):
         os.makedirs(path)
-    pre_flow("data_raw/train/black/", '{}/train_black.npy'.format(path), 'black')
-    pre_flow("data_raw/train/white/", '{}/train_white.npy'.format(path), 'white')
-    pre_flow("data_raw/test/black/", '{}/test_black.npy'.format(path), 'black')
-    pre_flow("data_raw/test/white/", '{}/test_white.npy'.format(path), 'white')
+    pre_flow("./data_raw/train/black/", '{}/train_black.npy'.format(path), 'black')
+    pre_flow("./data_raw/train/white/", '{}/train_white.npy'.format(path), 'white')
+    pre_flow("./data_raw/test/black/", '{}/test_black.npy'.format(path), 'black')
+    pre_flow("./data_raw/test/white/", '{}/test_white.npy'.format(path), 'white')
     print("end")
