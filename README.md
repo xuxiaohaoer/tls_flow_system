@@ -1,4 +1,4 @@
-# MWM
+# WVM
 词向量建模方法
 ## Folders:
 The repository is organised as follows:
