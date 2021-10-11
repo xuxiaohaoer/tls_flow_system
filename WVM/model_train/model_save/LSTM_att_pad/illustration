@@ -1,0 +1,24 @@
+LSTM_Attention(100,1,144,1):
+    特征：
+        按字节编码
+    model:
+        1.Thu May 13 16:48:57 2021
+        2.Thu May 13 16:52:31 2021
+        3.Thu May 13 16:57:23 2021
+LSTM_Attention(28, 4, 144, 1):
+    特征：
+        client_hello
+        等长处理
+    model:
+        1.Thu May 13 17:15:34 2021
+        2.Thu May 13 17:18:17 2021
+        3.Thu May 13 17:25:41 2021
+LSTM_Attention(28, 5, 144, 1)
+    特征：
+        client_hello
+        等长处理
+        第一位加入位置
+    model:
+        1.Thu May 13 17:42:05 2021
+        2.Thu May 13 17:55:12 2021
+        3.Thu May 13 18:01:55 2021

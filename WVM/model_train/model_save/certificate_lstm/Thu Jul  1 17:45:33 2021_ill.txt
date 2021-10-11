@@ -1,0 +1,7 @@
+model_use:lstm
+feature_type:certificate
+feature_dir:f_data_compare_3
+hidden_num:144
+batch_size:32
+word_length:35
+feature_num:4

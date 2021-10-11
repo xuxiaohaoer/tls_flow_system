@@ -1,0 +1,5 @@
+model_use:mult_att_cnn
+feature_type:mix
+feature_dir:f_data_standard
+hidden_num:144
+batch_size:32

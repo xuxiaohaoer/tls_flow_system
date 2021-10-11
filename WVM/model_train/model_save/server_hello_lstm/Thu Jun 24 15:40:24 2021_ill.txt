@@ -1,0 +1,5 @@
+model_use:lstm
+feature_type:server_hello
+feature_dir:f_data_compare_1
+hidden_num:144
+batch_size:32

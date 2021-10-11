@@ -1,0 +1,55 @@
+LSTM(3,100,144,1):
+    特征：
+        1、添加了nth,timestamp,ip.src,ip.dst,sport,dport
+        2、报文信息
+        3、共取前100字节
+    模型：
+        1、Wed Apr 28 11:19:38
+        2、Wed Apr 28 11:41:24
+        3、Wed Apr 28 11:42:46
+        调整数据集后
+        4、Thu Apr 29 16:34:56
+        5、Thu Apr 29 17:23:29
+        6、Thu Apr 29 21:09:57
+        调整数据集后（删除没有client hello、server hello、certificate数据）
+        7、Thu May  6 16:45:59
+        8、Thu May  6 16:47:33
+        9、Thu May  6 16:57:37
+
+LSTM（1，100, 144，1）：
+    特征：
+        1、报文信息
+        2、共取前100字节
+    模型：
+        1、Fri Apr 23 09:38:47
+        2、Mon Apr 26 11:25:11
+        3、Mon Apr 26 11:25:48
+        调整数据集后（删除没有client hello数据）
+        4、Thu Apr 29 17:40:48
+        5、Thu Apr 29 17:43:14
+        6、Thu Apr 29 20:57:14
+        调整数据集后（删除没有client hello、server hello、certificate数据）
+        7、Thu May  6 16:18:50
+        8、Thu May  6 16:21:05
+        9、Thu May  6 16:28:20
+LSTM(1,144,256,1):
+    特征：
+        1、报文信息
+        2、共取前144字节
+    模型：
+        1、Wed Apr 28 16:19:39 0.8997
+        2、Wed Apr 28 16:24:15 0.8982
+
+LSTM（1，100，144，1）:
+    特征：
+        1、添加了nth,ip.src,ip.dst,sport,dport
+        2、报文信息
+        3、共取前100字节
+    模型：
+        1、Thu Apr 29 21:50:56
+        2、Thu Apr 29 21:54:12
+        3、Fri Apr 30 09:07:31
+        调整数据集后（删除没有client hello、server hello、certificate数据）
+        4、Fri May  7 09:42:07
+        5、Fri May  7 09:43:39
+        6、Fri May  7 09:49:36

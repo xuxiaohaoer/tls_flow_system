@@ -1,0 +1,16 @@
+ mult_att_CNN(3,144,256):
+    特征：
+        1、第i个包
+        2、对应包负载大小
+        3、负载内容
+    对应pre_data:
+        pre_data_mix
+            base_dir: /datacon/f_data_contrast/
+    模型：
+        1、Mon Apr 26 10:44:19 2021
+        2、Mon Apr 26 10:44:38 2021
+        3、Mon Apr 26 11:08:23 2021
+        修改数据集（删除client_hello后）
+        1、Wed May 12 17:19:46 2021
+        2、Wed May 12 17:28:00 2021
+        3、Wed May 12 17:35:44 2021
