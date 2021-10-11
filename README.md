@@ -17,7 +17,7 @@ The repository is organised as follows:
 * BiLSTM
 * 训练好的模型放在model_train中
 ## Run:
-* `python3 data_process.data_word_flow.py #特征提取`
-* `python3 model_train.DS.py #模型训练`
+* `python3 data_process/data_word_flow.py #特征提取`
+* `python3 model_train/DS.py #模型训练`
 ## Other：
 
