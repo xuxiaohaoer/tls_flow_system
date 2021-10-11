@@ -19,5 +19,5 @@ The repository is organised as follows:
 ## Run:
 * `python3 data_process.data_word_flow.py #特征提取`
 * `python3 model_train.DS.py #模型训练`
-## Ohter：
+## Other：
 
