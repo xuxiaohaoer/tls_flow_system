@@ -128,9 +128,6 @@ dmypy.json
 # Pyre type checker
 .pyre/
 data_feature/f_data_word
-data_feature/
+
 data_raw/
-WVM/data_feature/f_data_word/test_black.npy
-WVM/data_feature/f_data_word/test_white.npy
-WVM/data_feature/f_data_word/train_black.npy
-WVM/data_feature/f_data_word/train_white.npy
+
