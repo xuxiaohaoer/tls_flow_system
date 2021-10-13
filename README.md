@@ -9,8 +9,8 @@ The repository is organised as follows:
 * `model_train/`模型训练
 * `setting.yml`全局配置文件
 ## Data:
-* 原始数据放在data_raw里边
-* 处理好的词向量特征放在data_featurea里边
+* 原始数据放在data_raw里边,请分别建立`test/black`,`test/white`,`train/black`, `train/white`，根据训练与测试与黑白名单放入不同的文件夹中
+* 处理好的词向量特征放在data_featurea里边，对应`f_data_word`
 ## Models:
 * 词向量建模
 * Multihead Attention
