@@ -18,7 +18,6 @@ def pre_flow(data_path, save_path, type):
             except IOError:
                 print('could not parse {0}'.format(filename))
     dataset_np = np.array(dataset)
-    print(dataset_np)
     np.save(save_path, dataset_np)
 
 

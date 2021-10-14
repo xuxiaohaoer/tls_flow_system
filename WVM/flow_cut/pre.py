@@ -3,7 +3,7 @@ import dpkt
 import os
 import socket
 import csv
-from data_process.constants import PRETTY_NAMES
+from constants import PRETTY_NAMES
 from django.utils import timezone
 
 
@@ -155,3 +155,7 @@ def pcap_ana(filename, name):
         if filename == "AIMchat1.pcapng":
             print("123")
         flow_ana(flow_record, name)
+
+
+if __name__ == "__main__":
+    flow_pre_cut()

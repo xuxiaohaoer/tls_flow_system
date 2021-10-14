@@ -130,5 +130,6 @@ dmypy.json
 
 data_raw/
 data_feature/
+data_cut/
 
 

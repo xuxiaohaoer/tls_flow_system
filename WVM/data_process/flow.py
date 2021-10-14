@@ -966,61 +966,60 @@ class FlowWord(object):
                 assert isinstance(hd_data, dpkt.ssl.TLSCertificate)
                 certs = []
                 # print(dir(hd))
-                # if len(hd_data.certificates) != 0:
-                for i in range(len(hd_data.certificates)):
-                    cert_1 = hd_data.certificates[i]
+                if len(hd_data.certificates) != 0:
+                    cert_1 = hd_data.certificates[0]
                     try:
                         cert_1 = OpenSSL.crypto.load_certificate(OpenSSL.crypto.FILETYPE_ASN1, cert_1)
+                        if cert_1 not in self.certificate:
+                            self.certificate.append(cert_1)
+                            self.cipher_subject.append(cert_1.get_subject().CN)
+                            self.cipher_issue.append(cert_1.get_issuer().CN)
+                            # self.cipher_certifcate_time.append(cert_1.get_notAfter()-cert_1.get_notBefore())
+                            packet.append(cert_1.get_version().to_bytes(length=4, byteorder='big', signed=False))
+                            signature = cert_1.get_signature_algorithm()
+                            # cut_bytes(signature, packet)
+                            try:
+                                issue = bytes(cert_1.get_issuer().CN.replace(" ", ""), encoding='utf-8')
+                            except:
+                                issue = bytes(0)
+                            self.cut_bytes(issue, packet)
+                            
+                            time_before = cert_1.get_notBefore()[:8]
+                            time_after = cert_1.get_notAfter()[:8]
+                            packet.append(time_before[:4])
+                            packet.append(time_before[4:])
+                            packet.append(time_after[:4])
+                            packet.append(time_after[4:])                
+                            try:
+                                subject = bytes(cert_1.get_subject().CN.replace(" ", ""), encoding='utf-8')
+                            except:
+                                subject = bytes(0)
+                            self.cut_bytes(subject, packet)
+                        
+                            packet.append(cert_1.get_extension_count().to_bytes(length=4, byteorder='big', signed=False))
+                            
+
+                            before = datetime.strptime(cert_1.get_notBefore().decode()[:-7], '%Y%m%d')
+                            after = datetime.strptime(cert_1.get_notAfter().decode()[:-7], '%Y%m%d')
+                            self.cipher_certifcate_time.append((after - before).days)
+                            self.cipher_extension_count.append(cert_1.get_extension_count())
+                            self.cipher_sigature_alo.append(cert_1.get_signature_algorithm())
+                            self.cipher_version.append(cert_1.get_version())
+                            self.cipher_pubkey.append(cert_1.get_pubkey())
+                            self.cipher_serial_number.append(cert_1.get_serial_number())
+                            if cert_1.get_subject() == cert_1.get_issuer():
+                                # 自签名
+                                self.cipher_self_signature.append(1)
+                            else:
+                                # 非自签名
+                                self.cipher_self_signature.append(0)
+                        if not self.packet["certificate"]:
+                            self.packet["certificate"] = packet
+                        ans += certs
                     except:
-                        # print(self.ip_src)
-                        break
-                    if cert_1 not in self.certificate:
-                        self.certificate.append(cert_1)
-                        self.cipher_subject.append(cert_1.get_subject().CN)
-                        self.cipher_issue.append(cert_1.get_issuer().CN)
-                        # self.cipher_certifcate_time.append(cert_1.get_notAfter()-cert_1.get_notBefore())
-                        packet.append(cert_1.get_version().to_bytes(length=4, byteorder='big', signed=False))
-                        signature = cert_1.get_signature_algorithm()
-                        # cut_bytes(signature, packet)
-                        try:
-                            issue = bytes(cert_1.get_issuer().CN.replace(" ", ""), encoding='utf-8')
-                        except:
-                            issue = bytes(0)
-                        self.cut_bytes(issue, packet)
-                        
-                        time_before = cert_1.get_notBefore()[:8]
-                        time_after = cert_1.get_notAfter()[:8]
-                        packet.append(time_before[:4])
-                        packet.append(time_before[4:])
-                        packet.append(time_after[:4])
-                        packet.append(time_after[4:])                
-                        try:
-                            subject = bytes(cert_1.get_subject().CN.replace(" ", "") ,encoding='utf-8')
-                        except:
-                            subject = bytes(0)
-                        self.cut_bytes(subject, packet)
-                    
-                        packet.append(cert_1.get_extension_count().to_bytes(length=4, byteorder='big', signed=False))
-                        
-
-                        before = datetime.strptime(cert_1.get_notBefore().decode()[:-7], '%Y%m%d')
-                        after = datetime.strptime(cert_1.get_notAfter().decode()[:-7], '%Y%m%d')
-                        self.cipher_certifcate_time.append((after - before).days)
-                        self.cipher_extension_count.append(cert_1.get_extension_count())
-                        self.cipher_sigature_alo.append(cert_1.get_signature_algorithm())
-                        self.cipher_version.append(cert_1.get_version())
-                        self.cipher_pubkey.append(cert_1.get_pubkey())
-                        self.cipher_serial_number.append(cert_1.get_serial_number())
-                        if cert_1.get_subject() == cert_1.get_issuer():
-                            # 自签名
-                            self.cipher_self_signature.append(1)
-                        else:
-                            # 非自签名
-                            self.cipher_self_signature.append(0)
-                if not self.packet["certificate"]:
-                    self.packet["certificate"] = packet
-                ans += certs
-
+                        print("certificate证书解析错误")
+                        pass
+                
         return ans
 
 
