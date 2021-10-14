@@ -5,9 +5,7 @@ import socket
 import csv
 from data_process.constants import PRETTY_NAMES
 from django.utils import timezone
-# dataset = "stratosphere"
-# dataset = "lastline"
-dataset = "non_vpn"
+
 
 class flow():
     def __init__(self, data):
@@ -27,7 +25,7 @@ def pretty_name(name_type, name_value):
 
 def flow_pre_cut():
 
-    dir = "./data_raw/"
+    dir = "./WVM/data_raw/"
     
     num_tot_flow = []
     num_tot_tls = []
@@ -44,7 +42,7 @@ def flow_pre_cut():
 
 
 def flow_ana(flow_record, name):
-    base_path = "./data_cut/"
+    base_path = "./WVM/data_cut/"
     if not os.path.exists(base_path):
         os.mkdir(base_path)
     if not os.path.exists(base_path + 'flow/'):
@@ -140,8 +138,8 @@ def pcap_ana(filename, name):
             try:
                 dport = ip.data.dport
                 sport = ip.data.sport
-                flag = socket.inet_ntoa(ip.src) + '-' + str(sport) + '->' + socket.inet_ntoa(ip.dst) + '-' + str(dport)
-                flag_rev = socket.inet_ntoa(ip.dst) + '-' + str(dport) + '->' + socket.inet_ntoa(ip.src) + '-' + str(sport)
+                flag = socket.inet_ntoa(ip.src) + '->' + socket.inet_ntoa(ip.dst) 
+                flag_rev = socket.inet_ntoa(ip.dst) + '->' + socket.inet_ntoa(ip.src) 
                 # if dport == 443 or sport == 443:
                 if flag in flow_record.keys():
                     flow_record[flag].append([eth, timestamp])

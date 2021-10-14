@@ -18,6 +18,7 @@ def pre_flow(data_path, save_path, type):
             except IOError:
                 print('could not parse {0}'.format(filename))
     dataset_np = np.array(dataset)
+    print(dataset_np)
     np.save(save_path, dataset_np)
 
 
@@ -25,13 +26,16 @@ def pre_flow(data_path, save_path, type):
 
 if __name__ == "__main__":
     print("begin")
-    base_path = "data_feature"
+    base_path = "./WVM/data_feature"
     save_path = "f_data_word"
-    path = base_path + "/" + save_path
-    if not os.path.exists(path):
-        os.makedirs(path)
-    pre_flow("./data_raw/train/black/", '{}/train_black.npy'.format(path), 'black')
-    pre_flow("./data_raw/train/white/", '{}/train_white.npy'.format(path), 'white')
-    pre_flow("./data_raw/test/black/", '{}/test_black.npy'.format(path), 'black')
-    pre_flow("./data_raw/test/white/", '{}/test_white.npy'.format(path), 'white')
+    save_path = base_path + "/" + save_path
+    # 保存路径
+    data_path = "./WVM/data_cut"
+    # 原始数据路径
+    if not os.path.exists(save_path):
+        os.makedirs(save_path)
+    pre_flow("{}/train/black/".format(data_path), '{}/train_black.npy'.format(save_path), 'black')
+    pre_flow("{}/train/white/".format(data_path), '{}/train_white.npy'.format(save_path), 'white')
+    pre_flow("{}/test/black/".format(data_path), '{}/test_black.npy'.format(save_path), 'black')
+    pre_flow("{}/test/white/".format(data_path), '{}/test_white.npy'.format(save_path), 'white')
     print("end")
