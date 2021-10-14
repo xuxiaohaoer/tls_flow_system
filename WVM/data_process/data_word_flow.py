@@ -6,16 +6,17 @@ import numpy as np
 def pre_flow(data_path, save_path, type):
     dataset = []
     for filename in os.listdir(data_path):
-        try:
-            with open(data_path + filename, 'rb') as f:
-                capture = dpkt.pcap.Reader(f)
-                flow_sample = FlowWord(capture, type)
-                flow_sample.name = filename.replace('.pcap', '')
-                flow_sample.analyse()
-                dataset.append(flow_sample.tolist())
-            f.close()
-        except IOError:
-            print('could not parse {0}'.format(filename))
+        if '.pcap' in filename:
+            try:
+                with open(data_path + filename, 'rb') as f:
+                    capture = dpkt.pcap.Reader(f)
+                    flow_sample = FlowWord(capture, type)
+                    flow_sample.name = filename.replace('.pcap', '')
+                    flow_sample.analyse()
+                    dataset.append(flow_sample.toPac())
+                f.close()
+            except IOError:
+                print('could not parse {0}'.format(filename))
     dataset_np = np.array(dataset)
     np.save(save_path, dataset_np)
 
@@ -25,7 +26,7 @@ def pre_flow(data_path, save_path, type):
 if __name__ == "__main__":
     print("begin")
     base_path = "data_feature"
-    save_path = "f_data_word_test"
+    save_path = "f_data_word"
     path = base_path + "/" + save_path
     if not os.path.exists(path):
         os.makedirs(path)

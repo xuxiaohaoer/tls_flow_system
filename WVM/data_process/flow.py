@@ -307,17 +307,17 @@ class FlowWord(object):
             nth += 1
             time_seq.append(time)
 
-        for key in self.contact:
-            self.contact[key].duration = self.contact[key].flow_endtime - self.contact[key].flow_starttime
-            self.packetsize_flow_sequence.append(self.contact[key].flow_size)
-            self.time_flow_sequence.append(self.contact[key].duration)
+        # for key in self.contact:
+        #     self.contact[key].duration = self.contact[key].flow_endtime - self.contact[key].flow_starttime
+        #     self.packetsize_flow_sequence.append(self.contact[key].flow_size)
+        #     self.time_flow_sequence.append(self.contact[key].duration)
         
-        if need_more_certificate:
-            for key, value in self.flow.items():
-                if len(value.data) != 0:
-                    tem = value.data
-                    if tem[0] in {20, 21, 22}:
-                        self.parse_tls_records(tem, value.nth_seq[-1], value.nth_seq)
+        # if need_more_certificate:
+        #     for key, value in self.flow.items():
+        #         if len(value.data) != 0:
+        #             tem = value.data
+        #             if tem[0] in {20, 21, 22}:
+        #                 self.parse_tls_records(tem, value.nth_seq[-1], value.nth_seq)
         self.pack_num = nth
         self.time = time
         while len(self.sequence) < 20:
@@ -335,27 +335,22 @@ class FlowWord(object):
     
     def parse_ip_packet(self, eth, nth, timestamp):
         """
-        Parse IP packet
+        Parses IP packet.
         """
-        ip = eth.data
-        tcp = ip.data
 
+        ip = eth.data
+
+
+        tcp_data = ip.data
         sys.stdout.flush()
         size = len(eth)  # 包大小
         self.packetsize_packet_sequence.append(size)
         payload = len(ip.data.data)  # 有效负载大小
         self.payload_seq.append(payload)
         rest_load = None
-        if isinstance(tcp, dpkt.tcp.TCP):
-            self.fin += 1 if cal_fin(tcp.flags) else 0
-            self.syn += 1 if cal_syn(tcp.flags) else 0
-            self.rst += 1 if cal_rst(tcp.flags) else 0
-            self.psh += 1 if cal_psh(tcp.flags) else 0
-            self.ack += 1 if cal_ack(tcp.flags) else 0
-            self.urg += 1 if cal_urg(tcp.flags) else 0
-            self.cwe += 1 if cal_cwe(tcp.flags) else 0
-            self.ece += 1 if cal_ece(tcp.flags) else 0
-
+        if isinstance(ip.data, dpkt.tcp.TCP):
+            if (len(ip.data.data)!=0):
+                self.parse_tcp_packet(ip, nth, timestamp)
         # 提取 ip地址、端口号
         if nth == 1:
             self.ip_src = socket.inet_ntoa(ip.src)
@@ -394,20 +389,6 @@ class FlowWord(object):
         self.packetsize_size += size
 
         if isinstance(ip.data, dpkt.tcp.TCP) and payload:
-            rest_load = self.parse_tcp_packet(ip, nth, timestamp)
-
-            # entropy = 0
-            # bitFre = np.zeros(256)
-            # for key in ip.data.data:
-            #     bitFre[key] += 1
-            # self.bitFre += bitFre
-            # if bitFre.sum()!=0:
-            #     bitFre /= bitFre.sum()
-            # for key in bitFre:
-            #     if key!= 0:
-            #         entropy -= key *math.log(key, 2)
-            # self.entropy_seq.append(entropy)
-
             if socket.inet_ntoa(ip.src) == self.ip_dst:
                 direction = 1
             else:
@@ -420,10 +401,13 @@ class FlowWord(object):
             class FlowFlag:
                 def __init__(self, seq, data):
                     self.seq = seq
+
                     self.seq_exp = seq + len(data)
                     self.data = data
                     self.sequence = []
                     self.nth_seq = []
+                    self.ip = dpkt.ip.IP()
+                    self.timestamp = 0
 
             # 设置flow记录流的各条记录，以解决tcp resseambeld segment
             flow_flag = socket.inet_ntoa(ip.src) + '->' + socket.inet_ntoa(ip.dst)
@@ -438,9 +422,10 @@ class FlowWord(object):
             data = ip.data.data
             data_flag = data
             try:
-                if data[0] in {20,21,22, 23}:
-                    data_tem, flag = self.parse_tls_records(data, nth, [nth])
-                    if  flag:
+                if data[0] in {20, 21, 22, 23}:
+                    # 直接可以解压一部分，且返回剩余负载部分
+                    data_tem, flag = self.parse_tls_records(ip, data, nth, [nth], timestamp)
+                    if flag:
                         if len(data_tem) == 0:
                             data_tem = bytes(0)
                         data = data_tem
@@ -453,18 +438,24 @@ class FlowWord(object):
                     if len(self.flow[flow_flag1].data) != 0:
                         tem = self.flow[flow_flag1].data
                         nth_flag = self.flow[flow_flag1].nth_seq
+                        ip_tem = self.flow[flow_flag1].ip
+                        timestamp_tem = self.flow[flow_flag1].timestamp
                         if tem[0] in {20, 21, 22, 23}:
-                            rest_load, flag  = self.parse_tls_records(tem, nth_flag[-1], nth_flag)
+                            rest_load, flag = self.parse_tls_records(ip_tem, tem, nth_flag[-1], nth_flag, timestamp_tem)
 
                     try:
                         if rest_load != None and not len(data_flag):
                             if rest_load == bytes(0):
                                 self.flow[flow_flag1].sequence.clear()
                                 self.flow[flow_flag1].nth_seq.clear()
+                                self.flow[flow_flag1].ip = dpkt.ip.IP()
+                                self.flow[flow_flag1].timestamp = 0
                             if rest_load[0] in {20, 21, 22, 23}:
                                 self.flow[flow_flag1].data = rest_load
                                 # 中间插入一条ack较大值
                                 self.flow[flow_flag1].sequence = [rest_load]
+                                self.flow[flow_flag1].ip = ip
+                                self.flow[flow_flag1].timestamp = timestamp
                         else:
                             self.flow.pop(flow_flag1)
                             # flow[flow_flag1].data = bytes(0)
@@ -487,6 +478,8 @@ class FlowWord(object):
                             self.flow[flow_flag].sequence.append(data)
                             self.flow[flow_flag].nth_seq.append(nth)
                             self.flow[flow_flag].seq_exp = seq + len(data_flag)
+                            self.flow[flow_flag].ip = ip
+                            self.flow[flow_flag].timestamp = timestamp
                 else:
                     # if flow[flow_flag].seq < seq:
                     if self.flow[flow_flag].seq_exp == seq:
@@ -498,6 +491,8 @@ class FlowWord(object):
                                 self.flow[flow_flag].data += data
                                 self.flow[flow_flag].sequence.append(data)
                                 self.flow[flow_flag].nth_seq.append(nth)
+                                self.flow[flow_flag].ip = ip
+                                self.flow[flow_flag].timestamp = timestamp
                     else:
                         pass
 
@@ -509,14 +504,23 @@ class FlowWord(object):
         rest_load = None
         tcp_data = ip.data
         stream = ip.data.data
-   
+
+        # ssl flow
+        #  提取标志位
+
+        # if cal_psh(tcp_data.flags):
+        #     self.psh += 1
+        # if cal_urg(tcp_data.data.flags):
+        #     feature.urg += 1
+
         if (stream[0]) in {20, 21, 22, 23, 128, 25}:
             if (stream[0]) in {20, 21, 22}:
                 # print("---")
                 pass
                 # rest_load = parse_tls_records(ip, stream, nth)
             if (stream[0]) == 128:  # sslv2 client hello
-                # self.flag = True
+
+                # feature.flag = True
                 try:
                     cipher_length = stream[6] + stream[5] * 256
                 except:
@@ -524,24 +528,128 @@ class FlowWord(object):
                 if len(stream) > 6:
                     if stream[2] == 1:  # sslv2 client hello
 
+                        self.client_hello_num += 1
+
+                        packet = []
+                        pos_flag  = False
+                    
+                        packet.append(nth.to_bytes(length=4, byteorder='big', signed=False))
+                        # packet.append(math.floor(timestamp * 1000).to_bytes(length=4, byteorder='big', signed=False))
+                        packet.append((len(ip) + 14).to_bytes(length=4, byteorder='big', signed=False))
+                        packet.append(ip.src)
+                        packet.append(ip.dst)
+                        packet.append(ip.data.sport.to_bytes(length=4, byteorder='big', signed=False))
+                        packet.append(ip.data.dport.to_bytes(length=4, byteorder='big', signed=False))
+                        packet.append(bytes(3) + stream[2:3])  # 类型
+                        packet.append(bytes(3) + stream[1:2])  # 长度
+                        packet.append(bytes(2) +int(2).to_bytes(length=4, byteorder='big', signed=False)) # 版本
+                        packet.append(bytes(0) + stream[5:7])  # 长度    
+                        head = bytes(0)
+                        head += nth.to_bytes(length=4, byteorder='big', signed=False)
+                        # head += math.floor(timestamp * 1000).to_bytes(length=4, byteorder='big', signed=False)
+                        head += (len(ip) + 14).to_bytes(length=4, byteorder='big', signed=False)
+                        head += ip.src
+                        head += ip.dst
+                        head += ip.data.sport.to_bytes(length=4, byteorder='big', signed=False)
+                        head += ip.data.dport.to_bytes(length=4, byteorder='big', signed=False)
+                        if (self.client_hello_content == bytes(0)):
+                            self.client_hello_content = head + stream[2:]
                         # length = stream[1]
                         # dataClientHello = stream[:length+2]
-                        self.client_hello_num += 1
-                        self.tls_seq[nth-1] = stream[2]
+
+                        self.tls_seq[nth - 1] = stream[2]
                         self.cipher_num = max(cipher_length, self.cipher_num)
-                        tem = stream[6]*256 + stream[7] + 11  # 加密组件开始的stream的index
+                        tem = stream[7] * 256 + stream[8] + 11  # 加密组件开始的stream的index
                         i = 0
                         while i < cipher_length:
                             cipher = 0
                             if tem + i + 2 < len(stream):
                                 cipher = stream[tem + i + 2] + stream[tem + i + 1] * 256 + stream[tem + i] * 256 * 256
+                                packet.append(bytes(1) + stream[tem+i: tem+i+3])
                             if cipher not in self.cipher_support:
                                 self.cipher_support.append(cipher)
                             i += 3
+                        if not self.packet["client_hello"]:
+                            self.packet["client_hello"] = packet
+
+
                     # print(nth, stream[6])
             # if (stream[0]) == 25:
             #     rest_load = parse_tls_records(ip, stream, nth)
         return rest_load
+
+
+    def multiple_handshake(self, nth, buf, ip):
+        i, n = 0, len(buf)
+        msgs = []
+    
+        while i + 5 <= n:
+            tot = 0
+            v = buf[i + 1:i + 3]
+            if v in dpkt.ssl.SSL3_VERSION_BYTES:
+                head = buf[i:i + 5]
+                tot_len = int.from_bytes(buf[i + 3:i + 5], byteorder='big')
+                j = i + 5
+                while j <= tot_len + 1:
+                    try:
+                        Record_len = int.from_bytes(buf[j + 1:j + 4], byteorder='big', signed=False)
+                        len_tem_b = (Record_len + 4).to_bytes(length=2, byteorder='big', signed=False)
+                        head_tem = head[0:3] + len_tem_b
+                        tem = head_tem + buf[j:j + Record_len + 4]
+                    
+                    except:
+                        # Record_len = 0
+                        pass
+                    try:
+                        msg = dpkt.ssl.TLSRecord(tem)
+                        msgs.append(msg)
+                        record_type = self.pretty_name('tls_record', msg.type)
+
+                        if record_type == 'handshake':
+                            handshake_type = ord(msg.data[:1])
+                            if handshake_type == 11:  # certificate
+                                tem = 0
+                                a = []
+                                packet = []
+                                packet.append(nth.to_bytes(length = 4, byteorder = 'big', signed = False))
+                                # packet.append(math.floor(timestamp * 1000).to_bytes(length=4, byteorder='big', signed=False))
+                                packet.append((len(ip) + 14).to_bytes(length = 4, byteorder='big', signed=False))
+                                packet.append(ip.src)
+                                packet.append(ip.dst)
+                                packet.append(ip.data.sport.to_bytes(length = 4, byteorder= 'big', signed = False))
+                                packet.append(ip.data.dport.to_bytes(length = 4, byteorder= 'big', signed = False))
+                                packet.append(bytes(3) + msg.data[0:1])  # 类型
+                                packet.append(bytes(1) + msg.data[1:4])  # 长度
+                                a = self.parse_tls_certs(nth, msg.data, msg.length, packet)
+                                # return msgs, tot_len
+                            elif handshake_type == 2:  # server hello
+                                pass
+
+                        # print(nth, "***{}***".format(msg))
+
+                    except dpkt.NeedData:
+                        pass
+                    try:
+                        j += Record_len + 4
+                        i += j
+                    except:
+                        pass
+                    # if Record_len != 0:
+                    #     j += Record_len + 4
+                    #     i += j
+                    # else:
+                    #     j += 4
+                    #     i += j
+                # 防止无限循环
+                if j == i + 5:
+                    i = n
+
+
+            else:
+                raise dpkt.ssl.SSL3Exception('Bad TLS version in buf: %r' % buf[i:i + 5])
+            # i += tot
+        return msgs, i
+
 
     def multiple_handshake(self, nth,buf):
         i, n = 0, len(buf)
@@ -605,22 +713,23 @@ class FlowWord(object):
         return msgs, i
 
 
-    def parse_tls_records(self, stream, nth, nth_seq):
-        """
-        Parses TLS Records.
-        return:
-        flag: 是否分析成功
-        """
+    def parse_tls_records(self, ip, stream, nth, nth_seq, timestamp):
+      
+        packet = []
+    
         flag = False
         try:
             records, bytes_used = dpkt.ssl.tls_multi_factory(stream)
         except dpkt.ssl.SSL3Exception as exception:
             return stream, False
         # mutliple
+
+        
         if bytes_used == 0:
             try:
-                records, bytes_used = self.multiple_handshake(nth, stream)
+                records, bytes_used = self.multiple_handshake(nth, stream, ip)
                 flag = True
+
             except:
                 return stream, False
             if bytes_used > len(stream):
@@ -631,46 +740,43 @@ class FlowWord(object):
             if records[0].type == 22:
                 handshake_type = records[0].data[0]
                 # 握手格式要求，避免加入application data等信息
-                if handshake_type in {1,2,11,12,14,16,21}:
+                if handshake_type in {1, 2, 11, 12, 14, 16, 21}:
                     record_len = int.from_bytes(records[0].data[1:4], byteorder='big')
                     if record_len + 4 < records[0].length:
+                
                         flag = True
-                        records, bytes_used = self.multiple_handshake(nth, stream)
+                        records, bytes_used = self.cipher_versionmultiple_handshake(nth, stream, ip)
         except:
             return stream, False
         flag = True
-
         n = 0
         type = []
-        handshake_scope = [1,2,11,12,14,16]
+        handshake_scope = [1, 2, 11, 12, 14, 16]
         for record in records:
-            # print(nth, record.version)
             record_type = self.pretty_name('tls_record', record.type)
-
             if record_type == 'application_data':
-                i = (len(stream)- bytes_used) // 1460
+                i = (len(stream) - bytes_used) // 1460
                 # print(nth, nth_seq[-1-i],record_type)
                 # 存在多余bytes_used，说明组合了多余的包，应该回退
                 try:
-                    nth = nth_seq[-1-i]
+                    nth = nth_seq[-1 - i]
                 except:
-                    print(len(records))
-                    print(len(stream), bytes_used)
-                    print(self.ip_dst, self.ip_src, nth, i)
+                    pass
+                    # print(len(records))
+                    # print(len(stream), bytes_used)
+                    # print(self.ip_dst, self.ip_src, nth, i)
+                content = np.zeros(256)
+                entropy = 0
+                for key in record.data:
+                    content[key] += 1
+                self.cipher_bitFre += content
 
-                # content = np.zeros(256)
-                # entropy = 0
-                # for key in record.data:
-                #     content[key] += 1
-                # self.cipher_bitFre += content
-                #
-                # if content.sum()!=0:
-                #     content /= content.sum()
-                # for key in content:
-                #     if key != 0:
-                #         entropy -=  (key) * math.log(key, 2)
-                # self.cipher_app_entropy.append(entropy)
-
+                if content.sum() != 0:
+                    content /= content.sum()
+                for key in content:
+                    if key != 0:
+                        entropy -= (key) * math.log(key, 2)
+                self.cipher_app_entropy.append(entropy)
                 # if len(self.cipher_app_content) < 1600:
                 #     self.cipher_app_content += record.data
                 #     self.cipher_app_content = self.cipher_app_content[:1600]
@@ -688,57 +794,138 @@ class FlowWord(object):
                     # buf_ver = record.version.to_bytes(length=2, byteorder = 'big', signed=False)
                     # buf_len = record.length.to_bytes(length = 2, byteorder= 'big', signed=False)
                     # dataServerHello = buf_cont + buf_ver + buf_len + record.data
-                    self.server_hello_num +=1
+                    self.server_hello_num += 1
                     self.flow_num += 1
                     self.cipher = (record.data[-2] + record.data[-3] * 256)
+                    if (not self.packet["server_hello"]):
+                        packet = []
+                        packet.append(nth.to_bytes(length=4, byteorder='big', signed=False))
+                        # packet.append(math.floor(timestamp * 1000).to_bytes(length=4, byteorder='big', signed=False))
+                        packet.append((len(ip) + 14).to_bytes(length=4, byteorder='big', signed=False))
+                        packet.append(ip.src)
+                        packet.append(ip.dst)
+                        packet.append(ip.data.sport.to_bytes(length=4, byteorder='big', signed=False))
+                        packet.append(ip.data.dport.to_bytes(length=4, byteorder='big', signed=False))
+                        packet.append(bytes(3) + record.data[0:1])  # 类型
+                        packet.append(bytes(1) + record.data[1:4])  # 长度
+                        packet.append(bytes(2) + record.data[4:6])  # 版本
+                        packet.append(bytes(2) + record.data[record.data[38] + 39: record.data[38] + 41]) # 组件
+                        self.packet["server_hello"] = packet
+
+                    head = bytes(0)
+                    head += nth.to_bytes(length = 2, byteorder='big', signed=False)
+                    # head += math.floor(timestamp *1000).to_bytes(length =4, byteorder= 'big', signed= False)
+                    head += (len(ip) +14).to_bytes(length = 2, byteorder = 'big', signed = False)
+                    head += ip.src
+                    head += ip.dst
+                    head += ip.data.sport.to_bytes(length = 2, byteorder ='big', signed = False)
+                    head += ip.data.dport.to_bytes(length =2, byteorder = 'big', signed = False)
+
+                    if self.server_hello_content == bytes(0):
+                        self.server_hello_content = head + record.data[:6] + record.data[38:]
+
+
                 if handshake_type == 11:  # certificate
 
                     # buf_cont = record.type.to_bytes(length=1, byteorder='big', signed=False)
                     # buf_ver = record.version.to_bytes(length=2, byteorder='big', signed=False)
                     # buf_len = record.length.to_bytes(length=2, byteorder='big', signed=False)
                     # dataCertificate = buf_cont + buf_ver + buf_len + record.data
+                    packet = []
+                    packet.append(nth.to_bytes(length = 4, byteorder = 'big', signed = False))
+                    # packet.append(math.floor(timestamp * 1000).to_bytes(length=4, byteorder='big', signed=False))
+                    packet.append((len(ip) + 14).to_bytes(length = 4, byteorder='big', signed=False))
+                    packet.append(ip.src)
+                    packet.append(ip.dst)
+                    packet.append(ip.data.sport.to_bytes(length = 4, byteorder= 'big', signed = False))
+                    packet.append(ip.data.dport.to_bytes(length = 4, byteorder= 'big', signed = False))
+                    packet.append(bytes(3) + record.data[0:1])  # 类型
+                    packet.append(bytes(1) + record.data[1:4])  # 长度
+
                     self.certificate_num += 1
-                    len_cer = int.from_bytes(record.data[4:7], byteorder='big')  # 转换字节流为十进制
-                    data = record.data[7:]
-                    tem = 0
+                    head = bytes(0)
+                    head += nth.to_bytes(length = 2, byteorder='big', signed=False)
+                    # head += math.floor(timestamp *1000).to_bytes(length =4, byteorder= 'big', signed= False)
+                    head += (len(ip) +14).to_bytes(length = 2, byteorder = 'big', signed=False)
+                    head += ip.src
+                    head += ip.dst
+                    head += ip.data.sport.to_bytes(length = 2, byteorder = 'big', signed= False)
+                    head += ip.data.dport.to_bytes(length = 2, byteorder = 'big', signed= False)
                     a = []
-                    a = self.parse_tls_certs(nth, record.data, record.length)
-                    while len(data):
-                        len_cer_tem = int.from_bytes(data[0:3], byteorder='big')
-                        certificate = data[3:len_cer_tem + 3]
-                        data = data[len_cer_tem + 3:]
+                    a = self.parse_tls_certs(nth, record.data, record.length, packet)
+                    if self.certificate_content == bytes(0):
+                        self.certificate_content = head + record.data
+                    
+
                 if handshake_type == 1:
                     self.client_hello_num += 1
-                if n == 0:
-                    if handshake_type == 1:  # sslv3 tlsv1 client hello
-                        # self.flag = True
-                        try:
-                            cipher_len = int(record.data[40 + record.data[38]])
-                        except IndexError as exception:
-                            cipher_len = 0
-                            print(self.name)
-                            
-                        # buf_cont = record.type.to_bytes(length=1, byteorder='big', signed=False)
-                        # buf_ver = record.version.to_bytes(length=2, byteorder='big', signed=False)
-                        # buf_len = record.length.to_bytes(length=2, byteorder='big', signed=False)
-                        # dataClientHello= buf_cont + buf_ver + buf_len + record.data
 
-                        self.cipher_num = max(cipher_len, self.cipher_num)
-                        tem = 40 + record.data[38] + 1
-                        i = 0
-                        while i < cipher_len:
-                            cipher = record.data[tem + i] * 256 + record.data[tem + i + 1]
-                            if cipher not in self.cipher_support:
-                                self.cipher_support.append(cipher)
-                            i += 2
+                if handshake_type == 1:  # sslv3 tlsv1 client hello
+                    # self.flag = True
+                    try:
+                        cipher_len = int(record.data[40 + record.data[38]])
+                    except IndexError as exception:
+                        cipher_len = 0
+                        print(self.name)
+
+                    head = bytes(0)
+                    head += nth.to_bytes(length=2, byteorder='big', signed=False)
+
+                    # head += math.floor(timestamp * 1000).to_bytes(length=4, byteorder='big', signed=False)
+
+                    # head += math.floor(timestamp * 1000).to_bytes(length=2, byteorder='big', signed=False)
+                    head += (len(ip) + 14).to_bytes(length=2, byteorder='big', signed=False)
+                    head += ip.src
+                    head += ip.dst
+                    head += ip.data.sport.to_bytes(length=2, byteorder='big', signed=False)
+                    head += ip.data.dport.to_bytes(length=2, byteorder='big', signed=False)
+                    if self.client_hello_content == bytes(0):
+                        self.client_hello_content = head + record.data[:6] + record.data[38:]
+
+                    # buf_cont = record.type.to_bytes(length=1, byteorder='big', signed=False)
+                    # buf_ver = record.version.to_bytes(length=2, byteorder='big', signed=False)
+                    # buf_len = record.length.to_bytes(length=2, byteorder='big', signed=False)
+                    # dataClientHello= buf_cont + buf_ver + buf_len + record.data
+                    packet = []
+                    packet.append(nth.to_bytes(length=4, byteorder='big', signed=False))
+                    # packet.append(math.floor(timestamp * 1000).to_bytes(length=4, byteorder='big', signed=False))
+                    packet.append((len(ip) + 14).to_bytes(length=4, byteorder='big', signed=False))
+                    packet.append(ip.src)
+                    packet.append(ip.dst)
+                    packet.append(ip.data.sport.to_bytes(length=4, byteorder='big', signed=False))
+                    packet.append(ip.data.dport.to_bytes(length=4, byteorder='big', signed=False))
+                    packet.append(bytes(3) + record.data[0:1])  # 类型
+                    packet.append(bytes(1) + record.data[1:4])  # 长度
+                    packet.append(bytes(2) + record.data[4:6])  # 版本
+                    try:
+                        packet.append(bytes(2) + record.data[record.data[38]+39:record.data[38]+41]) # 组件长度
+                    except:
+                        pass
+                        # print(self.ip_dst)
+                        # print(self.ip_src)
+                        # print(nth)
+
+                    self.cipher_num = max(cipher_len, self.cipher_num)
+                    tem = 40 + record.data[38] + 1
+                    i = 0
+                    while i < cipher_len:
+                        cipher = record.data[tem + i] * 256 + record.data[tem + i + 1]
+
+                        packet.append(bytes(2) + record.data[tem+i :tem+i +2])
+                        if cipher not in self.cipher_support:
+                            self.cipher_support.append(cipher)
+                        i += 2
                         # print(nth, record.data[40])
+                    if not self.packet["client_hello"]:
+                        self.packet["client_hello"] = packet
+
 
             else:
                 type.append(record.type)
             n += 1
             sys.stdout.flush()
         try:
-            self.tls_seq[nth-1] = type
+            self.tls_seq[nth - 1] = type
         except:
             print(nth, len(self.tls_seq))
             print(self.ip_src, self.ip_dst)
@@ -749,7 +936,7 @@ class FlowWord(object):
         return load, flag
 
 
-    def parse_tls_certs(self, nth, data, record_length):
+    def parse_tls_certs(self, nth, data, record_length, packet):
         """
         Parses TLS Handshake message contained in data according to their type.
         """
@@ -779,14 +966,43 @@ class FlowWord(object):
                 assert isinstance(hd_data, dpkt.ssl.TLSCertificate)
                 certs = []
                 # print(dir(hd))
-                if len(hd_data.certificates) != 0:
-                    cert_1 = hd_data.certificates[0]
-                    cert_1 = OpenSSL.crypto.load_certificate(OpenSSL.crypto.FILETYPE_ASN1, cert_1)
+                # if len(hd_data.certificates) != 0:
+                for i in range(len(hd_data.certificates)):
+                    cert_1 = hd_data.certificates[i]
+                    try:
+                        cert_1 = OpenSSL.crypto.load_certificate(OpenSSL.crypto.FILETYPE_ASN1, cert_1)
+                    except:
+                        # print(self.ip_src)
+                        break
                     if cert_1 not in self.certificate:
                         self.certificate.append(cert_1)
                         self.cipher_subject.append(cert_1.get_subject().CN)
                         self.cipher_issue.append(cert_1.get_issuer().CN)
                         # self.cipher_certifcate_time.append(cert_1.get_notAfter()-cert_1.get_notBefore())
+                        packet.append(cert_1.get_version().to_bytes(length=4, byteorder='big', signed=False))
+                        signature = cert_1.get_signature_algorithm()
+                        # cut_bytes(signature, packet)
+                        try:
+                            issue = bytes(cert_1.get_issuer().CN.replace(" ", ""), encoding='utf-8')
+                        except:
+                            issue = bytes(0)
+                        self.cut_bytes(issue, packet)
+                        
+                        time_before = cert_1.get_notBefore()[:8]
+                        time_after = cert_1.get_notAfter()[:8]
+                        packet.append(time_before[:4])
+                        packet.append(time_before[4:])
+                        packet.append(time_after[:4])
+                        packet.append(time_after[4:])                
+                        try:
+                            subject = bytes(cert_1.get_subject().CN.replace(" ", "") ,encoding='utf-8')
+                        except:
+                            subject = bytes(0)
+                        self.cut_bytes(subject, packet)
+                    
+                        packet.append(cert_1.get_extension_count().to_bytes(length=4, byteorder='big', signed=False))
+                        
+
                         before = datetime.strptime(cert_1.get_notBefore().decode()[:-7], '%Y%m%d')
                         after = datetime.strptime(cert_1.get_notAfter().decode()[:-7], '%Y%m%d')
                         self.cipher_certifcate_time.append((after - before).days)
@@ -801,11 +1017,22 @@ class FlowWord(object):
                         else:
                             # 非自签名
                             self.cipher_self_signature.append(0)
-
+                if not self.packet["certificate"]:
+                    self.packet["certificate"] = packet
                 ans += certs
 
-
         return ans
+
+
+    def cut_bytes(self, tem, packet):
+        i = 0
+        while (i<len(tem)):
+            if (i+4)<=len(tem):
+                packet.append(tem[i:i+4])
+            else:
+                packet.append(bytes(4-len(tem) +i) + tem[i:])
+            i += 4 
+
     def pretty_name(self, name_type, name_value):
         """Returns the pretty name for type name_type."""
         if name_type in PRETTY_NAMES:
