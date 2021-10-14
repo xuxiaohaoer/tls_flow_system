@@ -13,7 +13,7 @@ def pre_flow(data_path, save_path, type):
                     flow_sample = FlowWord(capture, type)
                     flow_sample.name = filename.replace('.pcap', '')
                     flow_sample.analyse()
-                    dataset.append(flow_sample.toPac())
+                    dataset.append(flow_sample.toWord())
                 f.close()
             except IOError:
                 print('could not parse {0}'.format(filename))

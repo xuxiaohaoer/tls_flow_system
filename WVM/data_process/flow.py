@@ -269,7 +269,7 @@ class FlowWord(object):
                 result += (-key) * math.log(key, 2)
         return result
 
-    def toPac(self):
+    def toWord(self):
         res = []
      
         len_base = 4

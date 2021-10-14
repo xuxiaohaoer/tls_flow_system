@@ -59,7 +59,7 @@ def flow_ana(flow_record, name):
 
             if isinstance(ip.data, dpkt.tcp.TCP) and len(ip.data.data) != 0:
                 stream = ip.data.data
-                if (stream[0] ==128):
+                if (stream[0] ==128) and (len(stream)>5) and(stream[2]== 1) and (stream[3]== 3) and(stream[4] == 1):
                     flag = True
                     break
                 elif stream[0] in {20, 21, 22, 23}:
