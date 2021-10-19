@@ -9,7 +9,7 @@ import time
 from datetime import datetime
 from constants import PRETTY_NAMES
 
-need_more_certificate = True
+
 
 class FlowRecord:
     def __init__(self, num, flow_size, flow_starttime, flow_endtime):
@@ -31,8 +31,9 @@ class FlowWord(object):
         self.ip_dst = ''  # 源ip地址
         self.dport = 0  # 源端口号
         self.sport = 0  # 目的端口号
+        
         self.pack_num = 0  # 包数量
-        self.flow_num = 0  # 流数目
+        
         self.num_src = 0  # 源包数目
         self.num_dst = 0    # 目的包数目
         self.num_ratio = 0  # 上下行流量比
@@ -41,49 +42,53 @@ class FlowWord(object):
         self.size_ratio = 0  # 上下行包大小比
         self.by_s = 0   # 每秒字节传输速度
         self.pk_s = 0   # 每秒包传输速度
+
         self.time = 0  # 整体持续时间
-        self.time_sequence = []  # 时间序列
+        self.time_seq = []  # 时间序列
         self.max_time = 0  # 最大间隔时间
         self.min_time = 0  # 最小间隔时间
         self.mean_time = 0  # 平均间隔时间
         self.std_time = 0  # 均差间隔时间
-        self.time_src_sequence = []  # 源时间间隔序列
+
+        self.time_src_seq = []  # 源时间间隔序列
         self.max_time_src = 0  # 最大源时间间隔
         self.min_time_src = 0  # 最小源时间间隔
         self.mean_time_src = 0  # 平均源时间间隔
         self.std_time_src = 0  # 均差源时间间隔
-        self.time_dst_sequence = []  # 目的时间间隔序列
+
+        self.time_dst_seq = []  # 目的时间间隔序列
         self.max_time_dst = 0  # 最大目的时间间隔
         self.min_time_dst = 0  # 最小目的时间间隔
         self.mean_time_dst = 0  # 平均目的时间间隔
         self.std_time_dst = 0  # 均差目的时间间隔
-        self.packetsize_src_sequence = []  # 源包大小序列
+
+        self.packetsize_src_seq = []  # 源包大小序列
         self.max_packetsize_src = 0  # 最大源包大小
         self.min_packetsize_src = 0  # 最小源包大小
         self.mean_packetsize_src = 0  # 平均源包大小
         self.std_packetsize_src = 0  # 均差源包大小
-        self.packetsize_dst_sequence = []  # 目的包大小序列
+
+        self.packetsize_dst_seq = []  # 目的包大小序列
         self.max_packetsize_dst = 0  # 最大目的包大小
         self.min_packetsize_dst = 0  # 最小目的包大小
         self.mean_packetsize_dst = 0  # 均值目的包大小
         self.std_packetsize_dst = 0  # 均差目的包大小
-        self.packetsize_flow_sequence = []  # 流大小序列
-        self.max_packetsize_flow = 0  # 最大流大小
-        self.min_packetsize_flow = 0  # 最小流大小
-        self.mean_packetsize_flow = 0  # 平均流大小
-        self.std_packetsize_flow = 0  # 均差流大小
-        self.time_flow_sequence = []  # 流时间序列
+
+       
+        self.time_flow_seq = []  # 流时间序列
         self.max_time_flow = 0  # 最大流时间
         self.min_time_flow = 0  # 最小流时间
         self.mean_time_flow = 0  # 平均流时间
         self.std_time_flow = 0  # 均差流时间
-        self.packetsize_size = 0  # # 平均包大小
-        self.packetsize_packet_sequence = []  # 包大小序列
+        self.packetsize_all = 0  # # 平均包大小
+
+        self.packetsize_packet_seq = []  # 包大小序列
         self.max_packetsize_packet = 0  # 最大包大小
         self.min_packetsize_packet = 0  # 最小包大小
         self.mean_packetsize_packet = 0  # 平均包大小
         self.std_packetsize_packet = 0  # 均差包大小
-        self.sequence = []  # 自TLS开始的有向序列
+    
+        self.seq = []  # 自TLS开始的有向序列
         self.payload_seq = []
         self.tls_seq = []
         self.dir_seq = []
@@ -106,7 +111,8 @@ class FlowWord(object):
         self.cipher_bitFre = np.zeros(256)  # 加密内容里各字节出现次数
 
         self.cipher_content_ratio = 0  # 加密内容位中0出现次数
-
+        
+        self.need_more_certificate = True
         self.certificate = []
         self.cipher_self_signature = []  # 是否自签名，是1，否为0
         self.cipher_certifcate_time = []  # 证书有效时间
@@ -155,6 +161,13 @@ class FlowWord(object):
         self.content = [] # 包负载内容
         self.content_payload = []
 
+        self.need_flow_all = False
+        self.flow_num = 0  # 流数目
+        self.packetsize_flow_seq = []  # 流大小序列
+        self.max_packetsize_flow = 0  # 最大流大小
+        self.min_packetsize_flow = 0  # 最小流大小
+        self.mean_packetsize_flow = 0  # 平均流大小
+        self.std_packetsize_flow = 0  # 均差流大小
 
     def tolist(self):
         """change to list that is the model input"""
@@ -163,29 +176,31 @@ class FlowWord(object):
 
         time = round(self.time)
         ip_src = int(self.ip_src.replace('.', ''))
-        self.packetsize_size = round(self.packetsize_size / self.pack_num)
-        self.max_time, self.min_time, self.mean_time, self.std_time = cal(self.time_sequence)
-        self.max_packetsize_flow, self.min_packetsize_flow, self.mean_packetsize_flow, self.std_packetsize_flow = cal(
-            self.packetsize_flow_sequence)
-        self.max_time_flow, self.min_time_flow, self.mean_time_flow, self.std_time_flow = cal(self.time_flow_sequence)
-        self.time_src_sequence = cal_seq(self.time_src_sequence)
-        self.time_dst_sequence = cal_seq(self.time_dst_sequence)
-        self.max_time_src, self.min_time_src, self.mean_time_src, self.std_time_src = cal(self.time_src_sequence)
-        self.max_time_dst, self.min_time_dst, self.mean_time_dst, self.std_time_dst = cal(self.time_dst_sequence)
+        self.packetsize_all = round(self.packetsize_all / self.pack_num)
+        self.time = cal_seq(self.time)
+        self.max_time, self.min_time, self.mean_time, self.std_time = cal(self.time_seq)
+        if self.need_flow_all:
+            self.max_packetsize_flow, self.min_packetsize_flow, self.mean_packetsize_flow, self.std_packetsize_flow = cal(
+                self.packetsize_flow_seq)
+        self.max_time_flow, self.min_time_flow, self.mean_time_flow, self.std_time_flow = cal(self.time_flow_seq)
+        self.time_src_seq = cal_seq(self.time_src_seq)
+        self.time_dst_seq = cal_seq(self.time_dst_seq)
+        self.max_time_src, self.min_time_src, self.mean_time_src, self.std_time_src = cal(self.time_src_seq)
+        self.max_time_dst, self.min_time_dst, self.mean_time_dst, self.std_time_dst = cal(self.time_dst_seq)
         self.max_packetsize_src, self.min_packetsize_src, self.mean_packetsize_src, self.std_packetsize_src = cal(
-            self.packetsize_src_sequence)
+            self.packetsize_src_seq)
         self.max_packetsize_dst, self.min_packetsize_dst, self.mean_packetsize_dst, self.std_packetsize_dst = cal(
-            self.packetsize_dst_sequence)
+            self.packetsize_dst_seq)
         self.max_packetsize_packet, self.min_packetsize_packet, self.mean_packetsize_packet, self.std_packetsize_packet = cal(
-            self.packetsize_packet_sequence)
+            self.packetsize_packet_seq)
         self.cipher_support_num = cal_hex(self.cipher_support)
         self.cipher_content_ratio = round(cal_ratio(self.bitFre), 4)
 
-        self.transition_matrix = cal_matrix(self.packetsize_packet_sequence)
+        self.transition_matrix = cal_matrix(self.packetsize_packet_seq)
 
         self.num_ratio = cal_div(self.num_src, self.num_dst)
         self.size_ratio = cal_div(self.size_src, self.num_dst)
-        self.by_s = cal_div(self.packetsize_size, self.time)
+        self.by_s = cal_div(self.packetsize_all, self.time)
         self.pk_s = cal_div(self.pack_num, self.time)
 
         self.max_entropy, self.min_entropy, self.mean_entropy, self.std_entropy = cal(self.bitFre)
@@ -197,7 +212,7 @@ class FlowWord(object):
         #     self.bitFre /= self.bitFre.sum()
         #     self.entropy = self.cal_entropy(self.bitFre)
 
-        return [self.pack_num, time, self.flow_num, ip_src, self.packetsize_size, self.dport,
+        return [self.pack_num, time, ip_src, self.packetsize_all, self.dport,
                 # 5
                 self.max_time, self.min_time, self.mean_time, self.std_time,
                 self.max_time_src, self.min_time_src, self.mean_time_src, self.std_time_src,
@@ -207,20 +222,15 @@ class FlowWord(object):
                 self.max_packetsize_packet, self.mean_packetsize_packet, self.std_packetsize_packet,
                 self.max_packetsize_src, self.mean_packetsize_src, self.std_packetsize_src,
                 self.max_packetsize_dst, self.mean_packetsize_dst, self.std_packetsize_dst,
-                self.max_packetsize_flow, self.min_packetsize_flow, self.mean_packetsize_flow, self.std_packetsize_flow,
-                # 34
                 self.fin, self.syn, self.rst, self.ack, self.urg, self.psh, self.ece, self.cwe,
-                # 42
                 self.num_src, self.num_dst, self.num_ratio,
                 self.size_src, self.size_dst, self.size_ratio,
                 self.by_s, self.pk_s,
-                # 50
                 self.cipher_self_signature, self.cipher_certifcate_time, self.cipher_subject,
                 self.cipher_issue, self.cipher_extension_count, self.cipher_sigature_alo, self.cipher_version,
                 self.cipher_num, self.cipher_support, self.cipher_support_num, self.cipher,
                 self.cipher_content_ratio,
                 self.cipher_app_num,
-                # 63
                 self.transition_matrix,
                 self.tls_seq, self.payload_seq, self.dir_seq,
                 self.client_hello_num, self.server_hello_num, self.certificate_num,
@@ -298,30 +308,28 @@ class FlowWord(object):
 
     def analyse(self):
         nth = 1
-        time_seq = []
+        
         for timestamp, packet in self.capture:
-            self.parse_packet(packet, timestamp, nth)
+            if(self.client_hello_content == bytes(0) or self.server_hello_content == bytes(0) or self.certificate_content == bytes(0) ):
+                self.parse_packet(packet, timestamp, nth)
             if nth == 1:
                 time_begin = timestamp
             time = timestamp - time_begin
             nth += 1
-            time_seq.append(time)
+            self.time_seq.append(time)
 
-        # for key in self.contact:
-        #     self.contact[key].duration = self.contact[key].flow_endtime - self.contact[key].flow_starttime
-        #     self.packetsize_flow_sequence.append(self.contact[key].flow_size)
-        #     self.time_flow_sequence.append(self.contact[key].duration)
+
+        if self.need_flow_all:
+            for key in self.contact:
+                self.contact[key].duration = self.contact[key].flow_endtime - self.contact[key].flow_starttime
+                self.packetsize_flow_seq.append(self.contact[key].flow_size)
+                self.time_flow_seq.append(self.contact[key].duration)
         
-        # if need_more_certificate:
-        #     for key, value in self.flow.items():
-        #         if len(value.data) != 0:
-        #             tem = value.data
-        #             if tem[0] in {20, 21, 22}:
-        #                 self.parse_tls_records(tem, value.nth_seq[-1], value.nth_seq)
+   
         self.pack_num = nth
         self.time = time
-        while len(self.sequence) < 20:
-            self.sequence.append(0)
+        while len(self.seq) < 20:
+            self.seq.append(0)
 
     def parse_packet(self, packet, timestamp, nth):
         """
@@ -340,11 +348,10 @@ class FlowWord(object):
 
         ip = eth.data
 
-
-        tcp_data = ip.data
         sys.stdout.flush()
         size = len(eth)  # 包大小
-        self.packetsize_packet_sequence.append(size)
+        self.packetsize_packet_seq.append(size)
+        self.packetsize_all += size
         payload = len(ip.data.data)  # 有效负载大小
         self.payload_seq.append(payload)
         rest_load = None
@@ -358,35 +365,36 @@ class FlowWord(object):
             self.sport = int(ip.data.sport)
             self.dport = int(ip.data.dport)
         if socket.inet_ntoa(ip.src) == self.ip_src:
-            self.time_src_sequence.append(timestamp)
-            self.packetsize_src_sequence.append(size)
+            self.time_src_seq.append(timestamp)
+            self.packetsize_src_seq.append(size)
             self.num_src += 1
             self.size_src += size
             self.dir_seq.append(1)
         else:
-            self.time_dst_sequence.append(timestamp)
-            self.packetsize_dst_sequence.append(size)
+            self.time_dst_seq.append(timestamp)
+            self.packetsize_dst_seq.append(size)
             self.num_dst += 1
             self.size_dst += size
             self.dir_seq.append(-1)
 
-        flag = socket.inet_ntoa(ip.src) + ' ' + socket.inet_ntoa(ip.dst) + ' ' + str(ip.data.dport) + ' ' + str(
-            ip.data.sport)
-        flag_1 = socket.inet_ntoa(ip.dst) + ' ' + socket.inet_ntoa(ip.src) + ' ' + str(ip.data.sport) + ' ' + str(
-            ip.data.dport)
-        if self.contact.__contains__(flag):
-            self.contact[flag].num += 1
-            self.contact[flag].flow_endtime = timestamp
-            self.contact[flag].flow_size += size
-        # elif contact.__contains__(flag_1):
-        #     contact[flag_1].num += 1
-        #     contact[flag_1].flow_endtime = timestamp
-        #     contact[flag_1].flow_size += size
-        else:
-            tem = FlowRecord(0, size, timestamp, timestamp)
-            self.contact[flag] = tem
+        if self.need_flow_all:
+            flag = socket.inet_ntoa(ip.src) + ' ' + socket.inet_ntoa(ip.dst) + ' ' + str(ip.data.dport) + ' ' + str(
+                ip.data.sport)
+            flag_1 = socket.inet_ntoa(ip.dst) + ' ' + socket.inet_ntoa(ip.src) + ' ' + str(ip.data.sport) + ' ' + str(
+                ip.data.dport)
+            if self.contact.__contains__(flag):
+                self.contact[flag].num += 1
+                self.contact[flag].flow_endtime = timestamp
+                self.contact[flag].flow_size += size
+            # elif contact.__contains__(flag_1):
+            #     contact[flag_1].num += 1
+            #     contact[flag_1].flow_endtime = timestamp
+            #     contact[flag_1].flow_size += size
+            else:
+                tem = FlowRecord(0, size, timestamp, timestamp)
+                self.contact[flag] = tem
 
-        self.packetsize_size += size
+
 
         if isinstance(ip.data, dpkt.tcp.TCP) and payload:
             if socket.inet_ntoa(ip.src) == self.ip_dst:
@@ -394,10 +402,10 @@ class FlowWord(object):
             else:
                 direction = -1
             dirpath = direction * payload
-            if len(self.sequence) < 20:
-                self.sequence.append(dirpath)
+            if len(self.seq) < 20:
+                self.seq.append(dirpath)
 
-        if need_more_certificate:
+        if self.need_more_certificate:
             class FlowFlag:
                 def __init__(self, seq, data):
                     self.seq = seq
@@ -459,12 +467,12 @@ class FlowWord(object):
                         else:
                             self.flow.pop(flow_flag1)
                             # flow[flow_flag1].data = bytes(0)
-                            # flow[flow_flag1].sequence.clear()
+                            # flow[flow_flag1].seq.clear()
                             # flow[flow_flag1].nth_seq.clear()
                     except:
                         self.flow.pop(flow_flag1)
                         # flow[flow_flag1].data = bytes(0)
-                        # flow[flow_flag1].sequence.clear()
+                        # flow[flow_flag1].seq.clear()
                         # flow[flow_flag1].nth_seq.clear()
 
             # if data == None:
@@ -795,7 +803,6 @@ class FlowWord(object):
                     # buf_len = record.length.to_bytes(length = 2, byteorder= 'big', signed=False)
                     # dataServerHello = buf_cont + buf_ver + buf_len + record.data
                     self.server_hello_num += 1
-                    self.flow_num += 1
                     self.cipher = (record.data[-2] + record.data[-3] * 256)
                     if (not self.packet["server_hello"]):
                         packet = []
@@ -866,7 +873,6 @@ class FlowWord(object):
                         cipher_len = int(record.data[40 + record.data[38]])
                     except IndexError as exception:
                         cipher_len = 0
-                        print(self.name)
 
                     head = bytes(0)
                     head += nth.to_bytes(length=2, byteorder='big', signed=False)
@@ -908,16 +914,23 @@ class FlowWord(object):
                     self.cipher_num = max(cipher_len, self.cipher_num)
                     tem = 40 + record.data[38] + 1
                     i = 0
-                    while i < cipher_len:
-                        cipher = record.data[tem + i] * 256 + record.data[tem + i + 1]
+                    try:
+                        while i < cipher_len:
+                            cipher = record.data[tem + i] * 256 + record.data[tem + i + 1]
 
-                        packet.append(bytes(2) + record.data[tem+i :tem+i +2])
-                        if cipher not in self.cipher_support:
-                            self.cipher_support.append(cipher)
-                        i += 2
+                            packet.append(bytes(2) + record.data[tem+i :tem+i +2])
+                            if cipher not in self.cipher_support:
+                                self.cipher_support.append(cipher)
+                            i += 2
+                        if not self.packet["client_hello"]:
+                            self.packet["client_hello"] = packet
+                    except IndexError:
+                        # encypted hanshake message或者application报文中头字节为1，不是client_hello,匹配错误
+                        pass
+
+
                         # print(nth, record.data[40])
-                    if not self.packet["client_hello"]:
-                        self.packet["client_hello"] = packet
+                    
 
 
             else:
