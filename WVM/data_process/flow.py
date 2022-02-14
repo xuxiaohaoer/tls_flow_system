@@ -598,7 +598,7 @@ class FlowWord(object):
                 head = buf[i:i + 5]
                 tot_len = int.from_bytes(buf[i + 3:i + 5], byteorder='big')
                 j = i + 5
-                while j <= tot_len + 1:
+                while j <= tot_len + 5:
                     try:
                         Record_len = int.from_bytes(buf[j + 1:j + 4], byteorder='big', signed=False)
                         len_tem_b = (Record_len + 4).to_bytes(length=2, byteorder='big', signed=False)
@@ -613,33 +613,14 @@ class FlowWord(object):
                         msgs.append(msg)
                         record_type = self.pretty_name('tls_record', msg.type)
 
-                        if record_type == 'handshake':
-                            handshake_type = ord(msg.data[:1])
-                            if handshake_type == 11:  # certificate
-                                tem = 0
-                                a = []
-                                packet = []
-                                packet.append(nth.to_bytes(length = 4, byteorder = 'big', signed = False))
-                                # packet.append(math.floor(timestamp * 1000).to_bytes(length=4, byteorder='big', signed=False))
-                                packet.append((len(ip) + 14).to_bytes(length = 4, byteorder='big', signed=False))
-                                packet.append(ip.src)
-                                packet.append(ip.dst)
-                                packet.append(ip.data.sport.to_bytes(length = 4, byteorder= 'big', signed = False))
-                                packet.append(ip.data.dport.to_bytes(length = 4, byteorder= 'big', signed = False))
-                                packet.append(bytes(3) + msg.data[0:1])  # 类型
-                                packet.append(bytes(1) + msg.data[1:4])  # 长度
-                                a = self.parse_tls_certs(nth, msg.data, msg.length, packet)
-                                # return msgs, tot_len
-                            elif handshake_type == 2:  # server hello
-                                pass
-
                         # print(nth, "***{}***".format(msg))
 
                     except dpkt.NeedData:
-                        pass
+                        i = n
+                        break
                     try:
                         j += Record_len + 4
-                        i += j
+                        i += Record_len + 4
                     except:
                         pass
                     # if Record_len != 0:
@@ -656,69 +637,10 @@ class FlowWord(object):
             else:
                 raise dpkt.ssl.SSL3Exception('Bad TLS version in buf: %r' % buf[i:i + 5])
             # i += tot
-        return msgs, i
+        return msgs, i +5
 
 
-    def multiple_handshake(self, nth,buf):
-        i, n = 0, len(buf)
-        msgs = []
-        while i + 5 <= n:
-            tot = 0
-            v = buf[i + 1:i + 3]
-            if v in dpkt.ssl.SSL3_VERSION_BYTES:
-                head = buf[i:i+5]
-                tot_len = int.from_bytes(buf[i+3:i+5], byteorder='big')
-                j = i+5
-                while j<= tot_len +1:
-                    try:
-                        Record_len = int.from_bytes(buf[j+1:j+4], byteorder='big',signed=False)
-                        len_tem_b = (Record_len +4).to_bytes(length=2, byteorder='big', signed=False)
-                        head_tem = head[0:3] + len_tem_b
-                        tem = head_tem + buf[j:j+Record_len+4]
-                    except:
-                        # Record_len = 0
-                        pass
-                    try:
-                        msg = dpkt.ssl.TLSRecord(tem)
-                        msgs.append(msg)
-                        record_type = self.pretty_name('tls_record', msg.type)
-
-                        if record_type == 'handshake':
-                            handshake_type = ord(msg.data[:1])
-                            if handshake_type == 11:  # certificate
-
-                                tem = 0
-                                a = []
-                                a = self.parse_tls_certs(nth, msg.data, msg.length)
-                                # return msgs, tot_len
-                            elif handshake_type == 2: # server hello
-                                pass
-
-
-                        # print(nth, "***{}***".format(msg))
-
-                    except dpkt.NeedData:
-                        pass
-                    try:
-                        j += Record_len + 4
-                        i += j
-                    except :
-                        pass
-                    # if Record_len != 0:
-                    #     j += Record_len + 4
-                    #     i += j
-                    # else:
-                    #     j += 4
-                    #     i += j
-                # 防止无限循环
-                if j == i + 5:
-                    i = n
-
-
-            else:
-                raise dpkt.ssl.SSL3Exception('Bad TLS version in buf: %r' % buf[i:i + 5])
-            # i += tot
-        return msgs, i
+    
 
 
     def parse_tls_records(self, ip, stream, nth, nth_seq, timestamp):
@@ -727,35 +649,37 @@ class FlowWord(object):
     
         flag = False
         try:
+            record_len = int.from_bytes(stream[3: 5], byteorder='big', signed=False)
+            if record_len + 5 > len(stream):
+                return stream, False
+        except:
+            return stream, False
+        try:
             records, bytes_used = dpkt.ssl.tls_multi_factory(stream)
         except dpkt.ssl.SSL3Exception as exception:
             return stream, False
         # mutliple
 
+        try:
+            record = records[0]
+                # length = record.length
+            if record.type == 22 and record.data[0] in {1, 2, 11, 16}:
+                length = int.from_bytes(record.data[1:4], byteorder='big', signed=False) + 4
+            else:
+                length = record.length
+        except:
+            length = record.length
+            pass
         
-        if bytes_used == 0:
+        if bytes_used == 0 or length != record_len:
             try:
                 records, bytes_used = self.multiple_handshake(nth, stream, ip)
-                flag = True
-
             except:
                 return stream, False
             if bytes_used > len(stream):
                 return stream, False
 
-        # multiple 只解压了第一个报文
-        try:
-            if records[0].type == 22:
-                handshake_type = records[0].data[0]
-                # 握手格式要求，避免加入application data等信息
-                if handshake_type in {1, 2, 11, 12, 14, 16, 21}:
-                    record_len = int.from_bytes(records[0].data[1:4], byteorder='big')
-                    if record_len + 4 < records[0].length:
-                
-                        flag = True
-                        records, bytes_used = self.cipher_versionmultiple_handshake(nth, stream, ip)
-        except:
-            return stream, False
+      
         flag = True
         n = 0
         type = []
@@ -795,6 +719,8 @@ class FlowWord(object):
                 handshake_type = ord(record.data[:1])
                 if handshake_type in handshake_scope:
                     type.append(handshake_type)
+                if length +4 != len(record.data) or self.last_record == 'change_cipher': # encrypted handshake
+                    handshake_type == -1
                 # print(nth, "handshake_type", handshake_type)
                 if handshake_type == 2:  # server hello
 
