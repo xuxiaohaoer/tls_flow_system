@@ -454,10 +454,7 @@ class FlowWord(object):
                     try:
                         if rest_load != None and not len(data_flag):
                             if rest_load == bytes(0):
-                                self.flow[flow_flag1].sequence.clear()
-                                self.flow[flow_flag1].nth_seq.clear()
-                                self.flow[flow_flag1].ip = dpkt.ip.IP()
-                                self.flow[flow_flag1].timestamp = 0
+                                self.flow.pop(flow_flag1)
                             if rest_load[0] in {20, 21, 22, 23}:
                                 self.flow[flow_flag1].data = rest_load
                                 # 中间插入一条ack较大值
@@ -470,7 +467,8 @@ class FlowWord(object):
                             # flow[flow_flag1].seq.clear()
                             # flow[flow_flag1].nth_seq.clear()
                     except:
-                        self.flow.pop(flow_flag1)
+                        if flow_flag1 in self.flow.keys():
+                            self.flow.pop(flow_flag1)
                         # flow[flow_flag1].data = bytes(0)
                         # flow[flow_flag1].seq.clear()
                         # flow[flow_flag1].nth_seq.clear()
@@ -495,7 +493,6 @@ class FlowWord(object):
                         self.flow[flow_flag].seq = seq
                         self.flow[flow_flag].seq_exp += len(data_flag)
                         if data not in self.flow[flow_flag].sequence:
-                            if data not in self.flow[flow_flag].data:
                                 self.flow[flow_flag].data += data
                                 self.flow[flow_flag].sequence.append(data)
                                 self.flow[flow_flag].nth_seq.append(nth)
@@ -591,14 +588,14 @@ class FlowWord(object):
         i, n = 0, len(buf)
         msgs = []
     
-        while i + 5 <= n:
+        while i + 5 < n:
             tot = 0
             v = buf[i + 1:i + 3]
             if v in dpkt.ssl.SSL3_VERSION_BYTES:
                 head = buf[i:i + 5]
                 tot_len = int.from_bytes(buf[i + 3:i + 5], byteorder='big')
                 j = i + 5
-                while j <= tot_len + 5:
+                while j < tot_len + 5:
                     try:
                         Record_len = int.from_bytes(buf[j + 1:j + 4], byteorder='big', signed=False)
                         len_tem_b = (Record_len + 4).to_bytes(length=2, byteorder='big', signed=False)
@@ -630,8 +627,6 @@ class FlowWord(object):
                     #     j += 4
                     #     i += j
                 # 防止无限循环
-                if j == i + 5:
-                    i = n
 
 
             else:
@@ -717,10 +712,11 @@ class FlowWord(object):
 
             if record_type == 'handshake':
                 handshake_type = ord(record.data[:1])
+                length = int.from_bytes(record.data[1:4], byteorder='big', signed=False)
                 if handshake_type in handshake_scope:
                     type.append(handshake_type)
-                if length +4 != len(record.data) or self.last_record == 'change_cipher': # encrypted handshake
-                    handshake_type == -1
+                if length +4 != len(record.data): # encrypted handshake
+                    handshake_type = -1
                 # print(nth, "handshake_type", handshake_type)
                 if handshake_type == 2:  # server hello
 
